@@ -1,3 +1,4 @@
+mod datastore;
 mod open_options;
 
 pub mod prelude {

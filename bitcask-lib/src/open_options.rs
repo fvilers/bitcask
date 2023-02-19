@@ -1,3 +1,7 @@
+use std::path::Path;
+
+use crate::datastore::Datastore;
+
 #[derive(Debug, Default)]
 pub struct OpenOptions {
     write: bool,
@@ -18,5 +22,9 @@ impl OpenOptions {
         self.write = self.write || sync;
         self.sync = sync;
         self
+    }
+
+    pub fn open<P: AsRef<Path>>(&self, directory_name: P) -> Datastore {
+        Datastore::open(directory_name.as_ref().to_path_buf())
     }
 }
