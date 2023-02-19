@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'bitcask-repl'",
+      "cargo": {
+        "args": ["build", "--bin=bitcask-repl", "--package=bitcask-repl"],
+        "filter": {
+          "name": "bitcask-repl",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
