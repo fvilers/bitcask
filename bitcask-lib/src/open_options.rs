@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::datastore::Datastore;
+use crate::datastore::{self, Datastore};
 
 #[derive(Debug, Default)]
 pub struct OpenOptions {
@@ -24,7 +24,7 @@ impl OpenOptions {
         self
     }
 
-    pub fn open<P: AsRef<Path>>(&self, directory_name: P) -> Datastore {
+    pub fn open<P: AsRef<Path>>(&self, directory_name: P) -> datastore::Result<Datastore> {
         Datastore::open(directory_name.as_ref().to_path_buf())
     }
 }
