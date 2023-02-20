@@ -102,6 +102,16 @@ impl Datastore {
             })
     }
 
+    pub fn sync(&self) -> Result<()> {
+        let Some(active_file) = &self.active_file else {
+            return Err(DatastoreError::ReadOnlyStore);
+        };
+
+        active_file.handle.sync_data()?;
+
+        Ok(())
+    }
+
     fn read_entry(&self, keydir_entry: &KeydirEntry) -> Result<DatastoreEntry> {
         let path = self.directory_name.join(&keydir_entry.file_name);
         let mut file = fs::OpenOptions::new().read(true).open(path)?;

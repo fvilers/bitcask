@@ -20,10 +20,7 @@ impl RunConfig {
 }
 
 pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
-    let mut datastore = OpenOptions::new()
-        .write(true)
-        .sync(true)
-        .open(config.directory_name)?;
+    let mut datastore = OpenOptions::new().write(true).open(config.directory_name)?;
     let key = String::from("my-key");
 
     // Trying to get a value from a previous put()
@@ -35,6 +32,7 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
     let value = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
 
     datastore.put(key.to_owned(), value)?;
+    datastore.sync()?;
 
     if let Some(value) = datastore.get(key.to_owned())? {
         let value = str::from_utf8(&value)?;
@@ -44,6 +42,7 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
     let key = String::from("deleted-key");
     let value = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
     datastore.put(key.to_owned(), value)?;
+    datastore.sync()?;
 
     println!("List of all keys");
     for key in datastore.list_keys() {
