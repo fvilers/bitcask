@@ -1,17 +1,21 @@
-use std::{fs, path, result, time};
+use std::{fs, path, result};
 
-use crate::{active_file::ActiveFile, datastore_error::DatastoreError};
+use crate::{
+    active_file::ActiveFile, datastore_entry::DatastoreEntry, datastore_error::DatastoreError,
+    timestamp::timestamp_secs,
+};
 
 #[derive(Debug)]
 pub struct Datastore {
-    _active_file: Option<ActiveFile<fs::File>>,
+    active_file: Option<ActiveFile<fs::File>>,
     _directory_name: path::PathBuf,
+    sync: bool,
 }
 
 pub type Result<T> = result::Result<T, DatastoreError>;
 
 impl Datastore {
-    pub fn open(directory_name: path::PathBuf, write: bool) -> Result<Self> {
+    pub fn open(directory_name: path::PathBuf, write: bool, sync: bool) -> Result<Self> {
         // TODO: read entries from existing files and extend the keydir hash map
 
         let active_file = if write {
@@ -28,15 +32,29 @@ impl Datastore {
         };
 
         Ok(Datastore {
-            _active_file: active_file,
+            active_file,
             _directory_name: directory_name,
+            sync,
         })
     }
-}
 
-fn timestamp_secs() -> u64 {
-    time::SystemTime::now()
-        .duration_since(time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
+    // TODO: implement the get() fn
+
+    pub fn put<V: AsRef<[u8]>>(&self, key: String, value: V) -> Result<()> {
+        let Some(active_file) = &self.active_file else {
+            return Err(DatastoreError::ReadOnlyStore);
+        };
+        let datastore_entry = DatastoreEntry::new(key, value.as_ref().to_owned());
+        let mut handle = &active_file.handle;
+
+        datastore_entry.write(&mut handle)?;
+
+        if self.sync {
+            handle.sync_all()?;
+        }
+
+        // TODO: save entry to keydir hash map
+
+        Ok(())
+    }
 }

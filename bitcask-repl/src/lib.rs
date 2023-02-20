@@ -24,7 +24,7 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
         .sync(true)
         .open(config.directory_name)?;
 
-    println!("{:?}", datastore);
+    datastore.put("foo".to_owned(), "bar")?;
 
     Ok(())
 }

@@ -25,6 +25,6 @@ impl OpenOptions {
     }
 
     pub fn open<P: AsRef<path::Path>>(&self, directory_name: P) -> datastore::Result<Datastore> {
-        Datastore::open(directory_name.as_ref().to_path_buf(), self.write)
+        Datastore::open(directory_name.as_ref().to_path_buf(), self.write, self.sync)
     }
 }
