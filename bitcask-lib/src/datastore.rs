@@ -1,4 +1,8 @@
-use std::{collections, ffi, fs, io::Seek, path, result};
+use std::{
+    collections, ffi, fs,
+    io::{self, Seek},
+    path, result,
+};
 
 use crate::{
     active_file::ActiveFile, datastore_entry::DatastoreEntry, datastore_error::DatastoreError,
@@ -8,7 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Datastore {
     active_file: Option<ActiveFile<fs::File>>,
-    _directory_name: path::PathBuf,
+    directory_name: path::PathBuf,
     keydir_map: collections::HashMap<String, KeydirEntry>,
     sync: bool,
 }
@@ -37,13 +41,36 @@ impl Datastore {
 
         Ok(Datastore {
             active_file,
-            _directory_name: directory_name,
+            directory_name,
             keydir_map,
             sync,
         })
     }
 
-    // TODO: implement the get() fn
+    pub fn get(&self, key: String) -> Result<Option<Vec<u8>>> {
+        let Some(keydir_entry) = self.keydir_map.get(&key) else {
+            return Ok(None);
+        };
+
+        let path = self.directory_name.join(&keydir_entry.file_name);
+        let mut file = fs::OpenOptions::new().read(true).open(path)?;
+
+        if let Some(active_file) = &self.active_file {
+            if keydir_entry.file_name == active_file.file_name {
+                active_file.handle.sync_all()?;
+            }
+        };
+
+        file.seek(io::SeekFrom::Start(keydir_entry.entry_position))?;
+
+        let datastore_entry = DatastoreEntry::read(&mut file)?;
+
+        if keydir_entry.timestamp != datastore_entry.timestamp {
+            return Err(DatastoreError::TimestampMismatch);
+        }
+
+        Ok(Some(datastore_entry.value))
+    }
 
     pub fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()> {
         let Some(active_file) = &self.active_file else {

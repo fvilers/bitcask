@@ -2,10 +2,10 @@ use std::ffi;
 
 #[derive(Debug)]
 pub struct KeydirEntry {
-    _file_name: ffi::OsString,
+    pub file_name: ffi::OsString,
     _value_size: u32,
-    _entry_position: u64,
-    _timestamp: u64,
+    pub entry_position: u64,
+    pub timestamp: u64,
 }
 
 impl KeydirEntry {
@@ -16,10 +16,10 @@ impl KeydirEntry {
         timestamp: u64,
     ) -> Self {
         Self {
-            _file_name: file_name,
+            file_name,
             _value_size: value_size,
-            _entry_position: entry_position,
-            _timestamp: timestamp,
+            entry_position,
+            timestamp,
         }
     }
 }
