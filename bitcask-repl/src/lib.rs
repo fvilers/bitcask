@@ -41,5 +41,14 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
         println!("Got value for {} -> {}", key, value);
     }
 
+    let key = String::from("deleted-key");
+    let value = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+    datastore.put(key.to_owned(), value)?;
+    datastore.delete(key.to_owned())?;
+
+    if datastore.get(key.to_owned())?.is_none() {
+        println!("Value for {} could not be found", key);
+    }
+
     Ok(())
 }

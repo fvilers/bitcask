@@ -26,6 +26,7 @@ impl Datastore {
         let entries = read_keydir_entries(&directory_name)?;
         let mut keydir_map = collections::HashMap::with_capacity(entries.len());
 
+        // TODO: remove deleted entries after reading them from files
         keydir_map.extend(entries);
 
         let active_file = if write {
@@ -79,7 +80,35 @@ impl Datastore {
         let Some(active_file) = &self.active_file else {
             return Err(DatastoreError::ReadOnlyStore);
         };
-        let datastore_entry = DatastoreEntry::new(key.to_owned(), value.as_ref().to_owned());
+        let file_name = active_file.file_name.to_owned();
+        let (datastore_entry, position) = &self.write_entry(key.to_owned(), value)?;
+        let keydir_entry = KeydirEntry::new(
+            file_name,
+            datastore_entry.value_size,
+            *position,
+            datastore_entry.timestamp,
+        );
+        self.keydir_map.insert(key, keydir_entry);
+
+        Ok(())
+    }
+
+    pub fn delete(&mut self, key: String) -> Result<()> {
+        self.write_entry(key.to_owned(), b"")?;
+        self.keydir_map.remove_entry(&key);
+
+        Ok(())
+    }
+
+    fn write_entry<V: AsRef<[u8]>>(
+        &mut self,
+        key: String,
+        value: V,
+    ) -> Result<(DatastoreEntry, u64)> {
+        let Some(active_file) = &self.active_file else {
+            return Err(DatastoreError::ReadOnlyStore);
+        };
+        let datastore_entry = DatastoreEntry::new(key, value.as_ref().to_owned());
         let mut handle = &active_file.handle;
         let position = handle.stream_position()?;
 
@@ -89,15 +118,7 @@ impl Datastore {
             handle.sync_all()?;
         }
 
-        let keydir_entry = KeydirEntry::new(
-            active_file.file_name.to_owned(),
-            datastore_entry.value_size,
-            position,
-            datastore_entry.timestamp,
-        );
-        self.keydir_map.insert(key, keydir_entry);
-
-        Ok(())
+        Ok((datastore_entry, position))
     }
 }
 
@@ -121,6 +142,11 @@ fn read_keydir_entries(directory_name: &path::Path) -> Result<Vec<(String, Keydi
             let mut position = 0;
 
             while let Ok(entry) = DatastoreEntry::read(&mut reader) {
+                // Check for deleted entry
+                if entry.value_size == 0 {
+                    continue;
+                }
+
                 let keydir_entry = KeydirEntry::new(
                     file_name.to_owned(),
                     entry.value_size,
