@@ -1,3 +1,4 @@
+mod active_file;
 mod datastore;
 mod datastore_error;
 mod open_options;
