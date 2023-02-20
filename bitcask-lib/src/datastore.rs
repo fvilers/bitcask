@@ -19,6 +19,8 @@ pub struct Datastore {
 
 pub type Result<T> = result::Result<T, DatastoreError>;
 
+const DATA_FILE_EXTENSION: &str = "dat";
+
 impl Datastore {
     pub fn open(directory_name: path::PathBuf, write: bool, sync: bool) -> Result<Self> {
         let entries = read_keydir_entries(&directory_name)?;
@@ -27,7 +29,8 @@ impl Datastore {
         keydir_map.extend(entries);
 
         let active_file = if write {
-            let file_name = ffi::OsString::from(format!("{}.dat", timestamp_secs()));
+            let file_name =
+                ffi::OsString::from(format!("{}.{}", timestamp_secs(), DATA_FILE_EXTENSION));
             let path = directory_name.join(&file_name);
             let file = fs::OpenOptions::new()
                 .create_new(true)
@@ -98,9 +101,38 @@ impl Datastore {
     }
 }
 
-fn read_keydir_entries(_directory_name: &path::Path) -> Result<Vec<(String, KeydirEntry)>> {
-    // TODO: read entries from existing files and extend the keydir hash map
-    let keydir_entries: Vec<(String, KeydirEntry)> = Vec::new();
+fn read_keydir_entries(directory_name: &path::Path) -> Result<Vec<(String, KeydirEntry)>> {
+    let mut keydir_entries: Vec<(String, KeydirEntry)> = Vec::new();
+    let mut dir_entries: Vec<_> = fs::read_dir(directory_name)?
+        .map(|entry| entry.unwrap())
+        .collect();
+
+    dir_entries.sort_by_key(|dir| dir.path());
+
+    for path in dir_entries
+        .iter()
+        .map(|dir_entry| dir_entry.path())
+        .filter(|path| path.is_file())
+        .filter(|path| path.extension().unwrap_or_default() == DATA_FILE_EXTENSION)
+    {
+        if let Some(file_name) = path.file_name() {
+            let data = fs::read(&path)?;
+            let mut reader = io::Cursor::new(data);
+            let mut position = 0;
+
+            while let Ok(entry) = DatastoreEntry::read(&mut reader) {
+                let keydir_entry = KeydirEntry::new(
+                    file_name.to_owned(),
+                    entry.value_size,
+                    position,
+                    entry.timestamp,
+                );
+
+                position = reader.position();
+                keydir_entries.push((entry.key, keydir_entry));
+            }
+        }
+    }
 
     Ok(keydir_entries)
 }

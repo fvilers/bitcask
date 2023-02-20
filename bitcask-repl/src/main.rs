@@ -13,6 +13,11 @@ fn main() {
 
     if let Err(error) = bitcask_repl::run(config) {
         eprintln!("{}", error);
+
+        if let Some(source) = error.source() {
+            eprintln!("  Caused by: {}", source);
+        }
+
         process::exit(1);
     }
 }

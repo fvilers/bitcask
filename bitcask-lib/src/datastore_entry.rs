@@ -10,7 +10,7 @@ pub struct DatastoreEntry {
     pub timestamp: u64,
     key_size: u32,
     pub value_size: u32,
-    key: String,
+    pub key: String,
     pub value: Vec<u8>,
 }
 
