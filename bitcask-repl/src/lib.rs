@@ -19,12 +19,14 @@ impl RunConfig {
 }
 
 pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
-    let datastore = OpenOptions::new()
+    let mut datastore = OpenOptions::new()
         .write(true)
         .sync(true)
         .open(config.directory_name)?;
 
     datastore.put("foo".to_owned(), "bar")?;
+
+    println!("{:?}", datastore);
 
     Ok(())
 }

@@ -6,9 +6,9 @@ use crate::timestamp::timestamp_secs;
 
 pub struct DatastoreEntry {
     crc: u32,
-    timestamp: u64,
+    pub timestamp: u64,
     key_size: u32,
-    value_size: u32,
+    pub value_size: u32,
     key: String,
     value: Vec<u8>,
 }

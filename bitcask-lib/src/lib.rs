@@ -2,6 +2,7 @@ mod active_file;
 mod datastore;
 mod datastore_entry;
 mod datastore_error;
+mod keydir_entry;
 mod open_options;
 mod timestamp;
 

@@ -1,16 +1,13 @@
-use std::io;
+use std::{ffi, io};
 
 #[derive(Debug)]
 pub struct ActiveFile<F: io::Write> {
     pub handle: F,
-    _file_name: String,
+    pub file_name: ffi::OsString,
 }
 
 impl<T: io::Write> ActiveFile<T> {
-    pub fn new(handle: T, file_name: String) -> Self {
-        Self {
-            handle,
-            _file_name: file_name,
-        }
+    pub fn new(handle: T, file_name: ffi::OsString) -> Self {
+        Self { handle, file_name }
     }
 }
