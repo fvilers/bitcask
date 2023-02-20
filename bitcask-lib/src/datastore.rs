@@ -59,9 +59,11 @@ impl Datastore {
         let path = self.directory_name.join(&keydir_entry.file_name);
         let mut file = fs::OpenOptions::new().read(true).open(path)?;
 
+        // Force the a disk write if the datastore is open in write mode and the file we need to read the datastore
+        // entry from is the same than the active one and if sync is not enabled.
         if let Some(active_file) = &self.active_file {
-            if keydir_entry.file_name == active_file.file_name {
-                active_file.handle.sync_all()?;
+            if keydir_entry.file_name == active_file.file_name && !self.sync {
+                active_file.handle.sync_data()?;
             }
         };
 
@@ -119,7 +121,7 @@ impl Datastore {
         datastore_entry.write(&mut handle)?;
 
         if self.sync {
-            handle.sync_all()?;
+            handle.sync_data()?;
         }
 
         Ok((datastore_entry, position))
