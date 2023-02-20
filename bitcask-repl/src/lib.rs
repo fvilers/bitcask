@@ -50,6 +50,12 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
         println!("{}", key);
     }
 
+    println!("Folding...");
+    let fold_result = datastore.fold(String::new(), |acc, key, value| {
+        format!("{}\n{}: {}", acc, key, str::from_utf8(&value).unwrap())
+    })?;
+    println!("{}", fold_result);
+
     println!("Deleting {}", key);
     datastore.delete(key.to_owned())?;
 

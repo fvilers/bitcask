@@ -3,5 +3,12 @@
     "**/target": true,
     "**/Cargo.lock": true
   },
-  "cSpell.words": ["bitcask", "byteorder", "castagnoli", "iscsi", "keydir"]
+  "cSpell.words": [
+    "bitcask",
+    "byteorder",
+    "castagnoli",
+    "iscsi",
+    "itertools",
+    "keydir"
+  ]
 }

@@ -1,8 +1,10 @@
 use std::{
     collections, ffi, fs,
     io::{self, Seek},
-    iter, path, result,
+    iter, ops, path, result,
 };
+
+use itertools::Itertools;
 
 use crate::{
     active_file::ActiveFile, datastore_entry::DatastoreEntry, datastore_error::DatastoreError,
@@ -55,25 +57,7 @@ impl Datastore {
         let Some(keydir_entry) = self.keydir_map.get(&key) else {
             return Ok(None);
         };
-
-        let path = self.directory_name.join(&keydir_entry.file_name);
-        let mut file = fs::OpenOptions::new().read(true).open(path)?;
-
-        // Force the a disk write if the datastore is open in write mode and the file we need to read the datastore
-        // entry from is the same than the active one and if sync is not enabled.
-        if let Some(active_file) = &self.active_file {
-            if keydir_entry.file_name == active_file.file_name && !self.sync {
-                active_file.handle.sync_data()?;
-            }
-        };
-
-        file.seek(io::SeekFrom::Start(keydir_entry.entry_position))?;
-
-        let datastore_entry = DatastoreEntry::read(&mut file)?;
-
-        if keydir_entry.timestamp != datastore_entry.timestamp {
-            return Err(DatastoreError::TimestampMismatch);
-        }
+        let datastore_entry = self.read_entry(keydir_entry)?;
 
         Ok(Some(datastore_entry.value))
     }
@@ -104,6 +88,41 @@ impl Datastore {
 
     pub fn list_keys(&self) -> impl iter::Iterator<Item = &String> + '_ {
         self.keydir_map.keys()
+    }
+
+    pub fn fold<B, F>(&self, init: B, f: F) -> Result<B>
+    where
+        F: ops::Fn(B, String, Vec<u8>) -> B,
+    {
+        self.keydir_map
+            .values()
+            .map(|keydir_entry| self.read_entry(keydir_entry))
+            .fold_ok(init, |acc, datastore_entry| {
+                f(acc, datastore_entry.key, datastore_entry.value)
+            })
+    }
+
+    fn read_entry(&self, keydir_entry: &KeydirEntry) -> Result<DatastoreEntry> {
+        let path = self.directory_name.join(&keydir_entry.file_name);
+        let mut file = fs::OpenOptions::new().read(true).open(path)?;
+
+        // Force the a disk write if the datastore is open in write mode and the file we need to read the datastore
+        // entry from is the same than the active one and if sync is not enabled.
+        if let Some(active_file) = &self.active_file {
+            if keydir_entry.file_name == active_file.file_name && !self.sync {
+                active_file.handle.sync_data()?;
+            }
+        };
+
+        file.seek(io::SeekFrom::Start(keydir_entry.entry_position))?;
+
+        let datastore_entry = DatastoreEntry::read(&mut file)?;
+
+        if keydir_entry.timestamp != datastore_entry.timestamp {
+            return Err(DatastoreError::TimestampMismatch);
+        }
+
+        Ok(datastore_entry)
     }
 
     fn write_entry<V: AsRef<[u8]>>(

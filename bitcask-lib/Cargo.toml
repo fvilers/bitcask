@@ -14,3 +14,4 @@ keywords = ["key-value", "bitscask", "kv-store"]
 [dependencies]
 byteorder = "1.4.3"
 crc = "3.0.1"
+itertools = "0.10.5"
