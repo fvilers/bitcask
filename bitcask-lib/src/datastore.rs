@@ -1,7 +1,7 @@
 use std::{
     collections, ffi, fs,
     io::{self, Seek},
-    path, result,
+    iter, path, result,
 };
 
 use crate::{
@@ -98,6 +98,10 @@ impl Datastore {
         self.keydir_map.remove_entry(&key);
 
         Ok(())
+    }
+
+    pub fn list_keys(&self) -> impl iter::Iterator<Item = &String> + '_ {
+        self.keydir_map.keys()
     }
 
     fn write_entry<V: AsRef<[u8]>>(

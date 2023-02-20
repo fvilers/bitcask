@@ -44,6 +44,13 @@ pub fn run(config: RunConfig) -> Result<(), Box<dyn Error>> {
     let key = String::from("deleted-key");
     let value = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
     datastore.put(key.to_owned(), value)?;
+
+    println!("List of all keys");
+    for key in datastore.list_keys() {
+        println!("{}", key);
+    }
+
+    println!("Deleting {}", key);
     datastore.delete(key.to_owned())?;
 
     if datastore.get(key.to_owned())?.is_none() {
