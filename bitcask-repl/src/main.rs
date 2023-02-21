@@ -33,6 +33,12 @@ fn main() -> Result<(), repl_rs::Error> {
             Command::new("get", get)
                 .with_parameter(Parameter::new("key").set_required(true)?)?
                 .with_help("Retrieve a value by key from a Bitcask datastore"),
+        )
+        .add_command(
+            Command::new("put", put)
+                .with_parameter(Parameter::new("key").set_required(true)?)?
+                .with_parameter(Parameter::new("value").set_required(true)?)?
+                .with_help("Store a key and value in a Bitcask datastore"),
         );
 
     repl.run()
@@ -47,4 +53,13 @@ fn get(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<Str
         .transpose();
 
     value.map_err(Into::into)
+}
+
+fn put(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>, CustomError> {
+    let key = args["key"].convert()?;
+    let value: String = args["value"].convert()?;
+
+    context.datastore.put(key, value)?;
+
+    Ok(None)
 }
