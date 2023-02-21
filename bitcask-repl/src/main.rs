@@ -39,6 +39,11 @@ fn main() -> Result<(), repl_rs::Error> {
                 .with_parameter(Parameter::new("key").set_required(true)?)?
                 .with_parameter(Parameter::new("value").set_required(true)?)?
                 .with_help("Store a key and value in a Bitcask datastore"),
+        )
+        .add_command(
+            Command::new("delete", delete)
+                .with_parameter(Parameter::new("key").set_required(true)?)?
+                .with_help("Delete a key from a Bitcask datastore"),
         );
 
     repl.run()
@@ -60,6 +65,17 @@ fn put(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<Str
     let value: String = args["value"].convert()?;
 
     context.datastore.put(key, value)?;
+
+    Ok(None)
+}
+
+fn delete(
+    args: HashMap<String, Value>,
+    context: &mut Context,
+) -> Result<Option<String>, CustomError> {
+    let key = args["key"].convert()?;
+
+    context.datastore.delete(key)?;
 
     Ok(None)
 }
