@@ -27,23 +27,25 @@ fn main() -> Result<(), repl_rs::Error> {
         });
     let context = Context::new(datastore);
     let mut repl = Repl::new(context)
-        .with_name("bitcask")
+        .with_name(env!("CARGO_PKG_NAME"))
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .with_description(env!("CARGO_PKG_DESCRIPTION"))
         .with_prompt(&CustomPrompt)
         .add_command(
             Command::new("get", get)
                 .with_parameter(Parameter::new("key").set_required(true)?)?
-                .with_help("Retrieve a value by key from a Bitcask datastore"),
+                .with_help("Retrieve a value by key from the datastore"),
         )
         .add_command(
             Command::new("put", put)
                 .with_parameter(Parameter::new("key").set_required(true)?)?
                 .with_parameter(Parameter::new("value").set_required(true)?)?
-                .with_help("Store a key and value in a Bitcask datastore"),
+                .with_help("Store a key and value in the datastore"),
         )
         .add_command(
             Command::new("delete", delete)
                 .with_parameter(Parameter::new("key").set_required(true)?)?
-                .with_help("Delete a key from a Bitcask datastore"),
+                .with_help("Delete a key from the datastore"),
         );
 
     repl.run()
