@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 bitcask-lib = { path = "../bitcask-lib" }
-rand = "0.8.5"
+repl-rs = "0.2.6"

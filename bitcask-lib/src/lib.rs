@@ -7,7 +7,9 @@ mod open_options;
 mod timestamp;
 
 pub mod prelude {
-    pub use crate::open_options::*;
+    pub use crate::datastore::Datastore;
+    pub use crate::datastore_error::DatastoreError;
+    pub use crate::open_options::OpenOptions;
 }
 
 #[cfg(test)]
