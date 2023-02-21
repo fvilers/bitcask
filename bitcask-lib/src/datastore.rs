@@ -24,6 +24,10 @@ pub type Result<T> = result::Result<T, DatastoreError>;
 const DATA_FILE_EXTENSION: &str = "dat";
 
 impl Datastore {
+    pub fn directory_name(&self) -> String {
+        self.directory_name.to_string_lossy().to_string()
+    }
+
     pub fn open(directory_name: path::PathBuf, write: bool, sync: bool) -> Result<Self> {
         let entries = read_keydir_entries(&directory_name)?;
         let mut keydir_map = collections::HashMap::with_capacity(entries.len());

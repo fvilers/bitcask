@@ -32,6 +32,10 @@ fn main() -> Result<(), repl_rs::Error> {
         .with_description(env!("CARGO_PKG_DESCRIPTION"))
         .with_prompt(&CustomPrompt)
         .add_command(
+            Command::new("context", show_context)
+                .with_help("Display information about the datastore context"),
+        )
+        .add_command(
             Command::new("get", get)
                 .with_parameter(Parameter::new("key").set_required(true)?)?
                 .with_help("Retrieve a value by key from the datastore"),
@@ -49,6 +53,15 @@ fn main() -> Result<(), repl_rs::Error> {
         );
 
     repl.run()
+}
+
+fn show_context(
+    _args: HashMap<String, Value>,
+    context: &mut Context,
+) -> Result<Option<String>, CustomError> {
+    let result = format!("Directory name: {}", context.datastore.directory_name());
+
+    Ok(Some(result))
 }
 
 fn get(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>, CustomError> {
