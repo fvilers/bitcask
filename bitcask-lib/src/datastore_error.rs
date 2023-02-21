@@ -1,4 +1,4 @@
-use std::{error, fmt, io, str};
+use std::{error, fmt, io, string};
 
 #[derive(Debug)]
 pub enum DatastoreError {
@@ -6,7 +6,7 @@ pub enum DatastoreError {
     CrcMismatch,
     TimestampMismatch,
     InputOutput(io::Error),
-    Utf8(str::Utf8Error),
+    Utf8(string::FromUtf8Error),
 }
 
 impl fmt::Display for DatastoreError {
@@ -45,8 +45,8 @@ impl From<io::Error> for DatastoreError {
     }
 }
 
-impl From<str::Utf8Error> for DatastoreError {
-    fn from(err: str::Utf8Error) -> DatastoreError {
+impl From<string::FromUtf8Error> for DatastoreError {
+    fn from(err: string::FromUtf8Error) -> DatastoreError {
         DatastoreError::Utf8(err)
     }
 }

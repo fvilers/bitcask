@@ -1,10 +1,11 @@
-use std::{io, str};
+use std::io;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use crc::{Crc, CRC_32_ISCSI};
 
 use crate::{datastore::Result, datastore_error::DatastoreError, timestamp::timestamp_secs};
 
+#[derive(Debug)]
 pub struct DatastoreEntry {
     crc: u32,
     pub timestamp: u64,
@@ -39,7 +40,7 @@ impl DatastoreEntry {
 
         let mut key: Vec<u8> = vec![0u8; key_size as usize];
         file.read_exact(&mut key)?;
-        let key = str::from_utf8(&key)?;
+        let key = String::from_utf8(key)?;
 
         let mut value: Vec<u8> = vec![0u8; value_size as usize];
         file.read_exact(&mut value)?;
@@ -53,7 +54,7 @@ impl DatastoreEntry {
             timestamp,
             key_size,
             value_size,
-            key: key.to_owned(),
+            key,
             value: value.to_owned(),
         })
     }
