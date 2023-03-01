@@ -1,30 +1,43 @@
-use std::path;
+use std::{marker, path};
 
-use crate::datastore::{self, Datastore};
+use crate::datastore::{self, Datastore, Read, Write};
 
-#[derive(Debug, Default)]
-pub struct OpenOptions {
-    write: bool,
+pub struct ReadOnlyMode;
+pub struct ReadWriteMode;
+
+#[derive(Debug)]
+pub struct OpenOptions<Mode = ReadOnlyMode> {
+    mode: marker::PhantomData<Mode>,
     sync: bool,
 }
 
-impl OpenOptions {
-    pub fn new() -> Self {
-        OpenOptions::default()
+impl Default for OpenOptions<ReadOnlyMode> {
+    fn default() -> Self {
+        Self {
+            mode: marker::PhantomData,
+            sync: false,
+        }
+    }
+}
+
+impl OpenOptions<ReadOnlyMode> {
+    pub fn with_write(self, sync: bool) -> OpenOptions<ReadWriteMode> {
+        OpenOptions {
+            mode: marker::PhantomData,
+            sync,
+        }
     }
 
-    pub fn write(&mut self, write: bool) -> &mut Self {
-        self.write = write;
-        self
+    pub fn open<P: AsRef<path::Path>>(self, directory_name: P) -> datastore::Result<impl Read> {
+        Datastore::open(directory_name.as_ref().to_path_buf(), false, false)
     }
+}
 
-    pub fn sync(&mut self, sync: bool) -> &mut Self {
-        self.write = self.write || sync;
-        self.sync = sync;
-        self
-    }
-
-    pub fn open<P: AsRef<path::Path>>(&self, directory_name: P) -> datastore::Result<Datastore> {
-        Datastore::open(directory_name.as_ref().to_path_buf(), self.write, self.sync)
+impl OpenOptions<ReadWriteMode> {
+    pub fn open<P: AsRef<path::Path>>(
+        self,
+        directory_name: P,
+    ) -> datastore::Result<impl Read + Write> {
+        Datastore::open(directory_name.as_ref().to_path_buf(), true, self.sync)
     }
 }

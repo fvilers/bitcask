@@ -1,15 +1,25 @@
 use std::{
     collections, ffi, fs,
     io::{self, Seek},
-    iter, ops, path, result,
+    ops, path, result,
 };
 
 use itertools::Itertools;
 
 use crate::{
     active_file::ActiveFile, datastore_entry::DatastoreEntry, datastore_error::DatastoreError,
-    keydir_entry::KeydirEntry, timestamp::timestamp_secs,
+    keydir_entry::KeydirEntry, keys::Keys, timestamp::timestamp_secs,
 };
+
+pub trait Read {
+    fn get(&self, key: String) -> Result<Option<Vec<u8>>>;
+    fn keys(&self) -> Keys;
+}
+pub trait Write {
+    fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()>;
+    fn delete(&mut self, key: String) -> Result<()>;
+    fn sync(&self) -> Result<()>;
+}
 
 #[derive(Debug)]
 pub struct Datastore {
@@ -23,6 +33,7 @@ pub type Result<T> = result::Result<T, DatastoreError>;
 
 const DATA_FILE_EXTENSION: &str = "dat";
 
+// TODO: should we have 2 implementations (Read and Read + Write) to avoid having an active file in the read one ?
 impl Datastore {
     pub fn directory_name(&self) -> String {
         self.directory_name.to_string_lossy().to_string()
@@ -57,43 +68,7 @@ impl Datastore {
         })
     }
 
-    pub fn get(&self, key: String) -> Result<Option<Vec<u8>>> {
-        let Some(keydir_entry) = self.keydir_map.get(&key) else {
-            return Ok(None);
-        };
-        let datastore_entry = self.read_entry(keydir_entry)?;
-
-        Ok(Some(datastore_entry.value))
-    }
-
-    pub fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()> {
-        let Some(active_file) = &self.active_file else {
-            return Err(DatastoreError::ReadOnlyStore);
-        };
-        let file_name = active_file.file_name.to_owned();
-        let (datastore_entry, position) = &self.write_entry(key.to_owned(), value)?;
-        let keydir_entry = KeydirEntry::new(
-            file_name,
-            datastore_entry.value_size,
-            *position,
-            datastore_entry.timestamp,
-        );
-        self.keydir_map.insert(key, keydir_entry);
-
-        Ok(())
-    }
-
-    pub fn delete(&mut self, key: String) -> Result<()> {
-        self.write_entry(key.to_owned(), b"")?;
-        self.keydir_map.remove_entry(&key);
-
-        Ok(())
-    }
-
-    pub fn list_keys(&self) -> impl iter::Iterator<Item = &String> + '_ {
-        self.keydir_map.keys()
-    }
-
+    // TODO: check if this method should not be replaced by an Iterator on Read
     pub fn fold<B, F>(&self, init: B, f: F) -> Result<B>
     where
         F: ops::Fn(B, String, Vec<u8>) -> B,
@@ -104,16 +79,6 @@ impl Datastore {
             .fold_ok(init, |acc, datastore_entry| {
                 f(acc, datastore_entry.key, datastore_entry.value)
             })
-    }
-
-    pub fn sync(&self) -> Result<()> {
-        let Some(active_file) = &self.active_file else {
-            return Err(DatastoreError::ReadOnlyStore);
-        };
-
-        active_file.handle.sync_data()?;
-
-        Ok(())
     }
 
     fn read_entry(&self, keydir_entry: &KeydirEntry) -> Result<DatastoreEntry> {
@@ -158,6 +123,57 @@ impl Datastore {
         }
 
         Ok((datastore_entry, position))
+    }
+}
+
+impl Read for Datastore {
+    fn get(&self, key: String) -> Result<Option<Vec<u8>>> {
+        let Some(keydir_entry) = self.keydir_map.get(&key) else {
+            return Ok(None);
+        };
+        let datastore_entry = self.read_entry(keydir_entry)?;
+
+        Ok(Some(datastore_entry.value))
+    }
+
+    fn keys(&self) -> Keys {
+        Keys::new(self.keydir_map.keys())
+    }
+}
+
+impl Write for Datastore {
+    fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()> {
+        let Some(active_file) = &self.active_file else {
+            return Err(DatastoreError::ReadOnlyStore);
+        };
+        let file_name = active_file.file_name.to_owned();
+        let (datastore_entry, position) = &self.write_entry(key.to_owned(), value)?;
+        let keydir_entry = KeydirEntry::new(
+            file_name,
+            datastore_entry.value_size,
+            *position,
+            datastore_entry.timestamp,
+        );
+        self.keydir_map.insert(key, keydir_entry);
+
+        Ok(())
+    }
+
+    fn delete(&mut self, key: String) -> Result<()> {
+        self.write_entry(key.to_owned(), b"")?;
+        self.keydir_map.remove_entry(&key);
+
+        Ok(())
+    }
+
+    fn sync(&self) -> Result<()> {
+        let Some(active_file) = &self.active_file else {
+            return Err(DatastoreError::ReadOnlyStore);
+        };
+
+        active_file.handle.sync_data()?;
+
+        Ok(())
     }
 }
 

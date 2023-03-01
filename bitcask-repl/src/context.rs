@@ -1,11 +1,11 @@
-use bitcask_lib::prelude::Datastore;
+use bitcask_lib::prelude::*;
 
-pub struct Context {
-    pub datastore: Datastore,
+pub struct Context<T: Read + Write> {
+    pub datastore: T,
 }
 
-impl Context {
-    pub fn new(datastore: Datastore) -> Self {
+impl<T: Read + Write> Context<T> {
+    pub fn new(datastore: T) -> Self {
         Self { datastore }
     }
 }
