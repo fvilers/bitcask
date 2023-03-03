@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 bitcask-lib = { path = "../bitcask-lib" }
-repl-rs = "0.2.6"
+repl-builder = { git = "https://github.com/fvilers/repl-builder" }

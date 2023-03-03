@@ -1,18 +1,16 @@
 mod context;
-mod custom_errors;
 mod custom_prompt;
 mod run_config;
 
-use std::{collections::HashMap, env, process};
+use std::{env, error::Error, process};
 
 use bitcask_lib::prelude::*;
 use context::Context;
-use custom_errors::CustomError;
 use custom_prompt::CustomPrompt;
-use repl_rs::{Command, Convert, Parameter, Repl, Value};
+use repl_builder::prelude::*;
 use run_config::RunConfig;
 
-fn main() -> Result<(), repl_rs::Error> {
+fn main() {
     let args: Vec<String> = env::args().collect();
     let config = RunConfig::build(&args).unwrap_or_else(|error| {
         eprintln!("{}", error);
@@ -26,50 +24,46 @@ fn main() -> Result<(), repl_rs::Error> {
             process::exit(1);
         });
     let context = Context::new(datastore);
-    let mut repl = Repl::new(context)
-        .with_name(env!("CARGO_PKG_NAME"))
-        .with_version(env!("CARGO_PKG_VERSION"))
-        .with_description(env!("CARGO_PKG_DESCRIPTION"))
+    let mut repl = ReplBuilder::new(context)
         .with_prompt(&CustomPrompt)
-        .add_command(
-            Command::new("get", get)
-                .with_parameter(Parameter::new("key").set_required(true)?)?
-                .with_help("Retrieve a value by key from the datastore"),
-        )
-        .add_command(Command::new("keys", list_keys).with_help("List all keys in the datastore"))
-        .add_command(
-            Command::new("put", put)
-                .with_parameter(Parameter::new("key").set_required(true)?)?
-                .with_parameter(Parameter::new("value").set_required(true)?)?
-                .with_help("Store a key and value in the datastore"),
-        )
-        .add_command(
-            Command::new("delete", delete)
-                .with_parameter(Parameter::new("key").set_required(true)?)?
-                .with_help("Delete a key from the datastore"),
-        );
+        .add_command(Command::new("get", get))
+        .add_command(Command::new("keys", list_keys))
+        .add_command(Command::new("put", put))
+        .add_command(Command::new("delete", delete))
+        .build();
 
-    repl.run()
+    if let Err(e) = repl.run() {
+        eprintln!("{}", e);
+
+        if let Some(source) = e.source() {
+            eprintln!("Source: {}", source);
+        }
+
+        process::exit(1);
+    }
 }
 
-fn get<T: Read + Write>(
-    args: HashMap<String, Value>,
-    context: &mut Context<T>,
-) -> Result<Option<String>, CustomError> {
-    let key = args["key"].convert()?;
-    let value = context
-        .datastore
-        .get(key)?
-        .map(String::from_utf8)
-        .transpose();
+fn get<T: Read + Write>(args: Vec<&str>, context: &mut Context<T>) -> CommandResult {
+    let Some(key) = args.first() else {
+        return Err(ReplError::MissingArgument("name".into()));
+    };
 
-    value.map_err(Into::into)
+    let Ok(result) = context.datastore.get(*key) else {
+        return Err(ReplError::Execution("Error while getting value from the datastore".into()))
+    };
+
+    let Some(buffer) = result else {
+        return Ok(None)
+    };
+
+    let Ok(value) = String::from_utf8(buffer) else {
+        return Err(ReplError::Execution("Error while converting value to UTF-8".into()));
+    };
+
+    Ok(Some(value))
 }
 
-fn list_keys<T: Read + Write>(
-    _args: HashMap<String, Value>,
-    context: &mut Context<T>,
-) -> Result<Option<String>, CustomError> {
+fn list_keys<T: Read + Write>(_args: Vec<&str>, context: &mut Context<T>) -> CommandResult {
     let keys = context
         .datastore
         .keys()
@@ -80,25 +74,29 @@ fn list_keys<T: Read + Write>(
     Ok(Some(keys))
 }
 
-fn put<T: Read + Write>(
-    args: HashMap<String, Value>,
-    context: &mut Context<T>,
-) -> Result<Option<String>, CustomError> {
-    let key = args["key"].convert()?;
-    let value: String = args["value"].convert()?;
+fn put<T: Read + Write>(args: Vec<&str>, context: &mut Context<T>) -> CommandResult {
+    let Some(key) = args.first() else {
+        return Err(ReplError::MissingArgument("name".into()));
+    };
+    let Some(value) = args.get(1) else {
+        return Err(ReplError::MissingArgument("value".into()));
+    };
 
-    context.datastore.put(key, value)?;
+    let Ok(_) = context.datastore.put(*key, value) else {
+        return Err(ReplError::Execution("Error while putting value to the datastore".into()));
+    };
 
     Ok(None)
 }
 
-fn delete<T: Read + Write>(
-    args: HashMap<String, Value>,
-    context: &mut Context<T>,
-) -> Result<Option<String>, CustomError> {
-    let key = args["key"].convert()?;
+fn delete<T: Read + Write>(args: Vec<&str>, context: &mut Context<T>) -> CommandResult {
+    let Some(key) = args.first() else {
+        return Err(ReplError::MissingArgument("name".into()));
+    };
 
-    context.datastore.delete(key)?;
+    let Ok(_) = context.datastore.delete(*key) else {
+        return Err(ReplError::Execution("Error while deleting value from the datastore".into()));
+    };
 
     Ok(None)
 }
