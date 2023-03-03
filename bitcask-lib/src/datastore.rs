@@ -12,12 +12,12 @@ use crate::{
 };
 
 pub trait Read {
-    fn get(&self, key: String) -> Result<Option<Vec<u8>>>;
+    fn get(&self, key: impl Into<String>) -> Result<Option<Vec<u8>>>;
     fn keys(&self) -> Keys;
 }
 pub trait Write {
-    fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()>;
-    fn delete(&mut self, key: String) -> Result<()>;
+    fn put<V: AsRef<[u8]>>(&mut self, key: impl Into<String>, value: V) -> Result<()>;
+    fn delete(&mut self, key: impl Into<String>) -> Result<()>;
     fn sync(&self) -> Result<()>;
 }
 
@@ -106,13 +106,13 @@ impl Datastore {
 
     fn write_entry<V: AsRef<[u8]>>(
         &mut self,
-        key: String,
+        key: impl Into<String>,
         value: V,
     ) -> Result<(DatastoreEntry, u64)> {
         let Some(active_file) = &self.active_file else {
             return Err(DatastoreError::ReadOnlyStore);
         };
-        let datastore_entry = DatastoreEntry::new(key, value.as_ref().to_owned());
+        let datastore_entry = DatastoreEntry::new(key.into(), value.as_ref().to_owned());
         let mut handle = &active_file.handle;
         let position = handle.stream_position()?;
 
@@ -127,8 +127,8 @@ impl Datastore {
 }
 
 impl Read for Datastore {
-    fn get(&self, key: String) -> Result<Option<Vec<u8>>> {
-        let Some(keydir_entry) = self.keydir_map.get(&key) else {
+    fn get(&self, key: impl Into<String>) -> Result<Option<Vec<u8>>> {
+        let Some(keydir_entry) = self.keydir_map.get(&key.into()) else {
             return Ok(None);
         };
         let datastore_entry = self.read_entry(keydir_entry)?;
@@ -142,12 +142,13 @@ impl Read for Datastore {
 }
 
 impl Write for Datastore {
-    fn put<V: AsRef<[u8]>>(&mut self, key: String, value: V) -> Result<()> {
+    fn put<V: AsRef<[u8]>>(&mut self, key: impl Into<String>, value: V) -> Result<()> {
         let Some(active_file) = &self.active_file else {
             return Err(DatastoreError::ReadOnlyStore);
         };
+        let key = key.into();
         let file_name = active_file.file_name.to_owned();
-        let (datastore_entry, position) = &self.write_entry(key.to_owned(), value)?;
+        let (datastore_entry, position) = &self.write_entry(&key, value)?;
         let keydir_entry = KeydirEntry::new(
             file_name,
             datastore_entry.value_size,
@@ -159,9 +160,11 @@ impl Write for Datastore {
         Ok(())
     }
 
-    fn delete(&mut self, key: String) -> Result<()> {
-        self.write_entry(key.to_owned(), b"")?;
-        self.keydir_map.remove_entry(&key);
+    fn delete(&mut self, key: impl Into<String>) -> Result<()> {
+        let key = key.into();
+
+        self.write_entry(&key, b"")?;
+        self.keydir_map.remove(&key);
 
         Ok(())
     }
